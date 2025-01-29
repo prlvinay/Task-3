@@ -1,0 +1,24 @@
+.violet-button {
+  background-color: #0880ab;
+  color: white;
+  border: none;
+}
+
+.violet-button:hover {
+  background-color: #005574; 
+}
+
+.cursor-pointer {
+  cursor: pointer;
+}
+.card {
+  margin-top: 80px; 
+}
+.card {
+  margin-top: 80px; 
+  border-radius: 20px;
+}
+.card-header{
+  border-top-left-radius: 20px;
+  border-top-right-radius: 20px;
+}

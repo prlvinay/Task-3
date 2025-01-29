@@ -1,0 +1,71 @@
+<p>reset-pass works!</p>
+<div class="container">
+  <div class="row justify-content-center mt-5">
+    <div class="col-md-6 col-lg-4">
+      <div class="card">
+        <div class="card-body">
+          <h2 class="card-title text-center mb-4">Reset Your Password</h2>
+          <form [formGroup]="resetForm" (ngSubmit)="onSubmit()">
+            <div class="mb-3">
+              <label for="password" class="form-label">Password</label>
+              <input
+                type="password"
+                class="form-control"
+                id="password"
+                formControlName="password"
+                [ngClass]="{ 'is-invalid': submitted && f['password'].errors }"
+              />
+              <div
+                *ngIf="submitted && f['password'].errors"
+                class="invalid-feedback"
+              >
+                <div *ngIf="f['password'].errors['required']">
+                  Password is required
+                </div>
+                <div *ngIf="f['password'].errors['minlength']">
+                  Password must be at least 4 characters
+                </div>
+              </div>
+            </div>
+            <div class="mb-3">
+              <label for="confirmPassword" class="form-label"
+                >Confirm Password</label
+              >
+              <input
+                type="password"
+                class="form-control"
+                id="confirmPassword"
+                formControlName="confirmPassword"
+                [ngClass]="{
+                  'is-invalid': submitted && f['confirmPassword'].errors
+                }"
+              />
+              <div
+                *ngIf="submitted && f['confirmPassword'].errors"
+                class="invalid-feedback"
+              >
+                <div *ngIf="f['confirmPassword'].errors['required']">
+                  Confirm Password is required
+                </div>
+                <div *ngIf="f['confirmPassword'].errors['matching']">
+                  Passwords must match
+                </div>
+              </div>
+            </div>
+            <button
+              type="submit"
+              class="btn btn-primary w-100"
+              [disabled]="loading"
+            >
+              <span
+                *ngIf="loading"
+                class="spinner-border spinner-border-sm me-1"
+              ></span>
+              Submit
+            </button>
+          </form>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>

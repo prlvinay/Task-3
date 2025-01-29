@@ -1,0 +1,101 @@
+<div class="card border-0 shadow-sm">
+  <div>
+    <div class="table-responsive">
+      <table class="table align-middle">
+        <thead>
+          <tr class="text-secondary">
+            <th style="width: 40px">
+              <div class="form-check">
+                <input type="checkbox" />
+              </div>
+            </th>
+            <th>Product Name</th>
+            <th>
+              Created At <i class="bi bi-info-circle ms-1" title="Sort"></i>
+            </th>
+            <th>
+              Category <i class="bi bi-info-circle ms-1" title="Sort"></i>
+            </th>
+            <th>Vendors</th>
+            <th>Quantity</th>
+            <th style="width: 40px"></th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr *ngFor="let item of cart; let i = index">
+            <td>
+              <input
+                type="checkbox"
+                [checked]="item.checked"
+                (click)="addcards(item, $event, i)"
+              />
+            </td>
+            <td>
+              <div class="d-flex align-items-center">
+                <img
+                  [src]="item?.product_image"
+                  class="rounded me-2"
+                  alt="Product"
+                  style="width: 32px; height: 32px; object-fit: cover"
+                />
+                <span>{{ item.product_name }}</span>
+              </div>
+            </td>
+            <td>{{ item.created_at }}</td>
+            <td>{{ item.category_name }}</td>
+            <td>{{ item.vendor_names }}</td>
+            <td>
+              <div class="d-flex align-items-center" style="width: 100px">
+                <button
+                  class="btn btn-light btn-sm px-2"
+                  (click)="sub(i)"
+                  [disabled]="quantity[i] <= 0"
+                >
+                  −
+                </button>
+                <span>{{ quantity[i] | json }}</span>
+                <button
+                  class="btn btn-light btn-sm px-2"
+                  (click)="add(i)"
+                  [disabled]="quantity[i] >= item?.quantity"
+                >
+                  +
+                </button>
+              </div>
+            </td>
+            <td>
+              <button
+                class="btn btn-link btn-sm text-secondary p-0"
+                (click)="removeItem(item.product_id)"
+              >
+                <i class="bi bi-trash"></i>
+              </button>
+            </td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+    <!-- Footer Actions -->
+    <div
+      class="d-flex justify-content-between align-items-center mt-4 pt-4 border-top"
+    >
+      <button
+        type="button"
+        class="btn btn-outline-secondary px-4"
+        data-bs-dismiss="modal"
+      >
+        Cancel
+      </button>
+      <button
+        type="button"
+        class="btn btn-primary px-4"
+        style="background-color: #7c3aed; border-color: #7c3aed"
+        (click)="onmove()"
+        data-bs-dismiss="modal"
+      >
+        Move
+      </button>
+    </div>
+  </div>
+</div>
