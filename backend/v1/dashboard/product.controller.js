@@ -264,13 +264,19 @@ const postproduct = asyncErrorHandler(async (req, res) => {
       ["product_id"]
     );
     console.log("Inserted product ID:", productId);
-    const data = {
-      vendor_id: vendor,
-      product_id: productId,
-      status: "1",
-    };
 
-    await db("product_to_vendor").insert(data);
+    // const data = {
+    //   vendor_id: vendor,
+    //   product_id: productId,
+    //   status: "1",
+    // };
+    const vendorData = vendor.map((vendorId) => ({
+      vendor_id: vendorId,
+      product_id: productId,
+      status: "1", // Assuming status is '1' for all vendors
+    }));
+
+    await db("product_to_vendor").insert(vendorData);
     console.log("Vendor associations added successfully.");
 
     //console.log("jandnj", req.body);

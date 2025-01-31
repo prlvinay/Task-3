@@ -14,7 +14,7 @@ const decryptPayload = require("../../middlewares/decrypt");
 
 dashboard.get("/vendor", decryptPayload, authenticateToken, vendor);
 dashboard.get("/categories", decryptPayload, authenticateToken, categories);
-dashboard.post("/product", decryptPayload, authenticateToken, postproduct);
+dashboard.post("/product", decryptPayload, postproduct);
 //dashboard.get("/product",getproduct);
 dashboard.put(
   "/product/updateimage",
