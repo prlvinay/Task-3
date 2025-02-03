@@ -6,7 +6,7 @@ import { jsPDF } from 'jspdf';
 import { MainpageService } from '../../services/mainpage.service';
 import { ToastrService } from 'ngx-toastr';
 import { debounceTime, distinctUntilChanged, Subject, switchMap } from 'rxjs';
-
+import { AwsService } from '../../services/aws.service';
 @Component({
   selector: 'app-inventory',
   templateUrl: './inventory.component.html',
@@ -24,6 +24,7 @@ export class InventoryComponent implements OnInit {
     categoryName: '',
     quantityInStock: '',
     unitPrice: '',
+    status: '',
   };
   products: any[] = [];
   productData: any;
@@ -38,6 +39,7 @@ export class InventoryComponent implements OnInit {
   categories: any;
   showCart: boolean = false;
   searchTerm: string = '';
+  importedFiles: any[] = [];
 
   valid: boolean = false;
   selectedFile: File | null = null;
@@ -49,7 +51,8 @@ export class InventoryComponent implements OnInit {
   constructor(
     private http: HttpClient,
     private main: MainpageService,
-    private toastr: ToastrService
+    private toastr: ToastrService,
+    private aws: AwsService
   ) {}
   subject: Subject<string> = new Subject<string>();
   ngOnInit(): void {
@@ -58,7 +61,7 @@ export class InventoryComponent implements OnInit {
       .get(`${environment.Url}/dashboard/categories`)
       .subscribe((data) => {
         this.categories = data;
-        console.log('hello', this.categories?.data);
+        //console.log('hello', this.categories?.data);
       });
     this.main.getUserInfo().subscribe({
       next: (data) => {
@@ -69,7 +72,7 @@ export class InventoryComponent implements OnInit {
         console.error('Error fetching user data:', error);
       },
     });
-
+    this.getFiles();
     this.subject
       .pipe(
         debounceTime(600),
@@ -88,6 +91,7 @@ export class InventoryComponent implements OnInit {
         this.totalcount = response.pagination.totalCount;
         this.totalPage = response.pagination.totalPages;
       });
+    this.fetchNotifications();
   }
   onSearchChange(event: any): void {
     this.searchTerm1 = event?.target?.value;
@@ -123,7 +127,6 @@ export class InventoryComponent implements OnInit {
       this.todownload.push(item);
       console.log('for downloading', this.todownload);
     }
-    //console.log('Selected Items:', this.selectedItems);
   }
 
   fetchData() {
@@ -131,7 +134,7 @@ export class InventoryComponent implements OnInit {
       .getProducts(this.pageNo, this.limit, this.searchTerm1, this.filters)
       .subscribe({
         next: (res: any) => {
-          console.log('response', res.data);
+          //console.log('response', res.data);
           this.products = res.data;
           this.totalPage = res.pagination.totalPages;
           this.totalcount = res.pagination.totalCount;
@@ -147,6 +150,16 @@ export class InventoryComponent implements OnInit {
     this.fetchData();
   }
 
+  fetchNotifications() {
+    this.main.getUnreadNotifications().subscribe((notifications) => {
+      notifications.forEach((notification: any) => {
+        this.toastr.info(notification.message, 'Notification');
+      });
+
+      // **Mark notifications as read after displaying them**
+      this.main.markNotificationsAsRead().subscribe();
+    });
+  }
   onChange(event: any) {
     const searchText = event.target?.value;
     this.subject.next(searchText);
@@ -310,6 +323,64 @@ export class InventoryComponent implements OnInit {
     };
     reader.readAsArrayBuffer(file);
   }
+  onimport1(event: any): void {
+    const files = event.target.files;
+    console.log(files);
+    if (!files) {
+      alert('Select any file.');
+      return;
+    }
+    for (let file of files) {
+      console.log('File ', file);
+      let fileName = file.name;
+      let filearr = fileName.split('.');
+      let fileType = filearr.pop();
+      console.log('fileType', fileType);
+      if (fileType == 'xls' || fileType == 'xlsx') {
+        console.log('before url', this.user.user_id);
+        this.aws
+          .getPresignedUrl(
+            fileName,
+            fileType,
+            this.user.user_id,
+            'importedfiles'
+          )
+          .subscribe({
+            next: (response) => {
+              const { presignedUrl, fileName, userId } = response;
+              console.log('response', response);
+              this.uploadToS3(presignedUrl, file);
+            },
+            error: (error) => {
+              console.error('Error getting presigned URL:', error);
+            },
+          });
+      } else {
+        console.log('Not an Excel file');
+        this.toastr.error('File Type Not Supported to upload');
+      }
+    }
+  }
+  uploadToS3(presignedUrl: string, file: File): void {
+    this.aws.uploadFileToS3(presignedUrl, file).subscribe({
+      next: (res: any) => {
+        this.toastr.success('File successfully uploaded to S3', 'success');
+        const addfiles = {
+          user_id: this.user.user_id,
+          filename: file.name,
+        };
+        this.http
+          .post(`${environment.Url}/import/add`, addfiles)
+          .subscribe((data) => {
+            console.log('uploaded successfully in table');
+            this.getFiles();
+          });
+      },
+      error: (error) => {
+        console.error('Error uploading file:', error);
+      },
+    });
+  }
 
   handleReload(event: any) {
     this.fetchData();
@@ -338,6 +409,17 @@ export class InventoryComponent implements OnInit {
         this.toastr.error('Error removing product from cart');
         console.error(err);
       },
+    });
+  }
+
+  getFiles() {
+    this.main.getImports(this.userid).subscribe({
+      next: (res: any) => {
+        console.log(res);
+        this.importedFiles = res.files;
+        //console.log('Imported Files', this.importedFiles);
+      },
+      error: () => {},
     });
   }
 }

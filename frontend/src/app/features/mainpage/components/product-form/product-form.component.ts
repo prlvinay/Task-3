@@ -102,17 +102,19 @@ export class ProductFormComponent implements OnInit {
     if (this.selectedFile) {
       const fileName = this.selectedFile.name;
       const fileType = this.selectedFile.type;
-      this.aws.getPresignedUrl(fileName, fileType, 'pics').subscribe({
-        next: (response: any) => {
-          const { presignedUrl, fileName, userId } = response;
-          console.log('res img', response.imageUrl);
+      this.aws
+        .getPresignedUrl(fileName, fileType, 'pics', 'productimages')
+        .subscribe({
+          next: (response: any) => {
+            const { presignedUrl, fileName, userId } = response;
+            console.log('res img', response.imageUrl);
 
-          this.uploadToS3(presignedUrl, fileName, userId, response.imageUrl);
-        },
-        error: (error: any) => {
-          console.error('Error getting presigned URL:', error);
-        },
-      });
+            this.uploadToS3(presignedUrl, fileName, userId, response.imageUrl);
+          },
+          error: (error: any) => {
+            console.error('Error getting presigned URL:', error);
+          },
+        });
     }
   }
 

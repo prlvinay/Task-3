@@ -116,4 +116,15 @@ export class MainpageService {
 
     return imageExtensions.includes(`.${fileExtension}`);
   }
+
+  getImports(userId: any) {
+    return this.http.get(`${environment.Url}/import/files/${userId}`);
+  }
+  getUnreadNotifications(): Observable<any> {
+    return this.http.get(`${environment.Url}/import/getNotifications`);
+  }
+
+  markNotificationsAsRead(): Observable<any> {
+    return this.http.post(`${environment.Url}/import/markAsRead`, {});
+  }
 }

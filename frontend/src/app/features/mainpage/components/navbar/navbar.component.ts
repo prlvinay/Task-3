@@ -3,6 +3,7 @@ import { MainpageService } from '../../services/mainpage.service';
 import { Router } from '@angular/router';
 import { ToastrService } from 'ngx-toastr';
 import { AwsService } from '../../services/aws.service';
+import { ChatService } from 'src/app/core/services/chat.service';
 
 @Component({
   selector: 'app-navbar',
@@ -18,7 +19,8 @@ export class NavbarComponent implements OnInit {
     private router: Router,
     private cdr: ChangeDetectorRef,
     private toastr: ToastrService,
-    private aws: AwsService
+    private aws: AwsService,
+    private chat: ChatService
   ) {}
 
   ngOnInit(): void {
@@ -50,7 +52,12 @@ export class NavbarComponent implements OnInit {
       const fileType = this.selectedFile.type;
       console.log('befors pre', this.user.user_id);
       this.aws
-        .getPresignedUrl(fileName, fileType, this.user.user_id)
+        .getPresignedUrl(
+          fileName,
+          fileType,
+          this.user.user_id,
+          'profile-photos'
+        )
         .subscribe({
           next: (response) => {
             const { presignedUrl, fileName, userId } = response;

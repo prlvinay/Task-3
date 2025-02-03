@@ -12,7 +12,8 @@ export class AwsService {
   getPresignedUrl(
     fileName: string,
     fileType: string,
-    userId: string
+    userId: string,
+    folderName: string
   ): Observable<{ presignedUrl: string; fileName: string; userId: string }> {
     return this.http.post<{
       presignedUrl: string;
@@ -22,6 +23,7 @@ export class AwsService {
       fileName,
       fileType,
       userId,
+      folderName,
     });
   }
 

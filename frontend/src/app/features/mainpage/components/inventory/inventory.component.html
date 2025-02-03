@@ -28,6 +28,13 @@
         <button
           class="btn btn-light me-2 border border-secondary"
           data-bs-toggle="modal"
+          data-bs-target="#fileStatusModal"
+        >
+          Import Status
+        </button>
+        <button
+          class="btn btn-light me-2 border border-secondary"
+          data-bs-toggle="modal"
           data-bs-target="#uploadModal23"
         >
           <i class="bi bi-upload"></i>
@@ -170,7 +177,7 @@
                 lass="form-select"
                 aria-label="Select column to filter"
                 id="filterColum"
-                [(ngModel)]="this.filterData.status"
+                [(ngModel)]="filters.status"
                 (change)="searchCategory()"
               >
                 status
@@ -221,7 +228,9 @@
               <span
                 class="badge text-bg-success"
                 *ngIf="
-                  item?.product_status == '1' && item?.quantity_in_stock > 0
+                  (item?.product_status == '2' &&
+                    item?.quantity_in_stock > 0) ||
+                  (item?.product_status == '1' && item?.quantity_in_stock > 0)
                 "
               >
                 Available
@@ -382,6 +391,7 @@
   </div>
 </div>
 
+<!-- Move to cart -->
 <div
   class="modal fade"
   id="moveToCartModal"
@@ -442,7 +452,7 @@
     </div>
   </div>
 </div>
-
+<!-- delete modal  -->
 <div
   class="modal fade"
   id="deleteModal"
@@ -489,6 +499,8 @@
 </div>
 <!-- Modal Backdrop -->
 <div class="modal-backdrop fade show" *ngIf="showModal"></div>
+
+<!-- edit  -->
 <div
   class="modal fade"
   id="editProductModal"
@@ -516,7 +528,7 @@
     </div>
   </div>
 </div>
-
+<!-- upload -->
 <div
   class="modal fade"
   id="uploadModal23"
@@ -547,8 +559,9 @@
           <input
             type="file"
             class="d-none"
-            (change)="onimport($event)"
+            (change)="onimport1($event)"
             accept="/*"
+            multiple
           />
           <i class="bi bi-cloud-arrow-up fs-1 text-secondary mb-2"></i>
           <p class="mb-1">Click to upload or drag and drop</p>
@@ -569,6 +582,150 @@
             Upload files
           </button>
         </div>
+      </div>
+    </div>
+  </div>
+</div>
+<!-- Bootstrap Modal -->
+<!-- <div
+  class="modal fade"
+  id="fileStatusModal"
+  tabindex="-1"
+  role="dialog"
+  aria-labelledby="fileStatusModalLabel"
+  aria-hidden="true"
+>
+  <div class="modal-dialog" role="document">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title" id="fileStatusModalLabel">
+          File Processing Status
+        </h5>
+        <button
+          type="button"
+          class="close"
+          data-bs-dismiss="modal"
+          aria-label="Close"
+        >
+          <span aria-hidden="true">&times;</span>
+        </button>
+      </div>
+      <div class="modal-body">
+        <table class="table table-bordered table-striped">
+          <thead class="thead-dark">
+            <tr>
+              <th scope="col">File Name</th>
+              <th scope="col">Total Records</th>
+              <th scope="col">Valid Records</th>
+              <th scope="col">Invalid Records</th>
+              <th scope="col">Status</th>
+              <th scope="col">Error File</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr *ngFor="let file of importedFiles">
+              <td>{{ file.filename }}</td>
+              <td>{{ +file.valid_count + +file.invalid_count }}</td>
+              <td>{{ file.valid_count }}</td>
+              <td>{{ file.invalid_count }}</td>
+              <td>{{ file.status }}</td>
+              <td>
+                <a
+                  *ngIf="file.errorurl"
+                  [href]="file.errorurl"
+                  target="_blank"
+                  class="btn btn-danger btn-sm"
+                  >Download</a
+                >
+                <span *ngIf="!file.errorurl">N/A</span>
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
+          Close
+        </button>
+      </div>
+    </div>
+  </div>
+</div> -->
+
+<div
+  class="modal fade"
+  id="fileStatusModal"
+  tabindex="-1"
+  role="dialog"
+  aria-labelledby="fileStatusModalLabel"
+  aria-hidden="true"
+>
+  <div class="modal-dialog modal-lg" role="document">
+    <!-- Increased modal width -->
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title" id="fileStatusModalLabel">
+          File Processing Status
+        </h5>
+        <button
+          type="button"
+          class="close"
+          data-bs-dismiss="modal"
+          aria-label="Close"
+        >
+          <span aria-hidden="true">&times;</span>
+        </button>
+      </div>
+      <div class="modal-body" style="max-height: 400px; overflow-y: auto">
+        <!-- Adjusted height with scrolling -->
+        <!-- Bootstrap Table -->
+        <table class="table table-bordered table-striped">
+          <thead class="thead-dark">
+            <tr>
+              <th scope="col">File Name</th>
+              <th scope="col">Total Records</th>
+              <th scope="col">Valid Records</th>
+              <th scope="col">Invalid Records</th>
+              <th scope="col">Status</th>
+              <th scope="col">Error File</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr *ngFor="let file of importedFiles">
+              <td>{{ file.filename }}</td>
+              <td>{{ +file.valid_count + +file.invalid_count }}</td>
+              <td>{{ file.valid_count }}</td>
+              <td>{{ file.invalid_count }}</td>
+              <td>
+                <span
+                  class="badge"
+                  [ngClass]="{
+                    'bg-success': file.status === 'success',
+                    'bg-danger': file.status === 'failed',
+                    'bg-warning': file.status === 'pending',
+                    'bg-secondary': file.status === 'processing'
+                  }"
+                  >{{ file.status }}</span
+                >
+              </td>
+              <td>
+                <a
+                  *ngIf="file.errorurl"
+                  [href]="file.errorurl"
+                  target="_blank"
+                  class="btn btn-danger btn-sm"
+                  >Download</a
+                >
+                <span *ngIf="!file.errorurl">All right</span>
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
+          Close
+        </button>
       </div>
     </div>
   </div>

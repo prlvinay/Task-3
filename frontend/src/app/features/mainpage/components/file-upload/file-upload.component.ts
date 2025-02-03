@@ -26,6 +26,7 @@ export class FileUploadComponent implements OnInit {
   username: string = '';
   roomName: string = '';
   roomJoined: boolean = false;
+  userid: string = '';
 
   constructor(
     private main: MainpageService,
@@ -36,11 +37,10 @@ export class FileUploadComponent implements OnInit {
   ) {}
 
   ngOnInit(): void {
-    //this.getUserInfo();
     this.loadFiles();
     this.getUserInfo();
-
-    this.chatService.userConnected(this.username);
+    // console.log('this user', this.userid);
+    // this.chatService.userConnected(this.username, this.userid);
 
     // sub  messages
     this.chatService.messages$.subscribe((messages) => {
@@ -48,14 +48,17 @@ export class FileUploadComponent implements OnInit {
     });
 
     this.chatService.userList$.subscribe((userList) => {
-      console.log('Active users: ', userList);
+      //console.log('Active users: ', userList);
     });
   }
   getUserInfo(): void {
     this.main.getUserInfo().subscribe({
       next: (data) => {
         this.user = data;
+        this.userid = this.user.user_id;
         this.username = this.user.username;
+        console.log('this user', this.userid);
+        this.chatService.userConnected(this.username, this.userid);
       },
       error: (error) => {
         console.error('Error fetching user data:', error);
@@ -151,16 +154,18 @@ export class FileUploadComponent implements OnInit {
       const fileName = this.selectedFile.name;
       const fileType = this.selectedFile.type;
       console.log('before url', this.user.user_id);
-      this.aws.getPresignedUrl(fileName, fileType, 'files').subscribe({
-        next: (response) => {
-          const { presignedUrl, fileName, userId } = response;
-          console.log('response', response);
-          this.uploadToS3(presignedUrl, fileName, userId);
-        },
-        error: (error) => {
-          console.error('Error getting presigned URL:', error);
-        },
-      });
+      this.aws
+        .getPresignedUrl(fileName, fileType, 'files', 'fileuploads')
+        .subscribe({
+          next: (response) => {
+            const { presignedUrl, fileName, userId } = response;
+            console.log('response', response);
+            this.uploadToS3(presignedUrl, fileName, userId);
+          },
+          error: (error) => {
+            console.error('Error getting presigned URL:', error);
+          },
+        });
     }
   }
   uploadToS3(presignedUrl: string, fileName: string, userId: string): void {
