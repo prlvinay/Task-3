@@ -522,12 +522,13 @@
       <div class="modal-body">
         <app-product-form
           (imagechange)="image($event)"
-          (formSubmitted)="editform($event)"
+          (formEdited)="editform($event)"
         ></app-product-form>
       </div>
     </div>
   </div>
 </div>
+
 <!-- upload -->
 <div
   class="modal fade"
@@ -586,7 +587,8 @@
     </div>
   </div>
 </div>
-<!-- Bootstrap Modal -->
+
+<!-- Bootstrap Modal file -->
 <!-- <div
   class="modal fade"
   id="fileStatusModal"
@@ -652,6 +654,7 @@
   </div>
 </div> -->
 
+<!-- file status  -->
 <div
   class="modal fade"
   id="fileStatusModal"
@@ -660,8 +663,7 @@
   aria-labelledby="fileStatusModalLabel"
   aria-hidden="true"
 >
-  <div class="modal-dialog modal-lg" role="document">
-    <!-- Increased modal width -->
+  <div class="modal-dialog modal-lg" role="document" style="max-width: 80%">
     <div class="modal-content">
       <div class="modal-header">
         <h5 class="modal-title" id="fileStatusModalLabel">
@@ -677,8 +679,6 @@
         </button>
       </div>
       <div class="modal-body" style="max-height: 400px; overflow-y: auto">
-        <!-- Adjusted height with scrolling -->
-        <!-- Bootstrap Table -->
         <table class="table table-bordered table-striped">
           <thead class="thead-dark">
             <tr>
@@ -688,6 +688,7 @@
               <th scope="col">Invalid Records</th>
               <th scope="col">Status</th>
               <th scope="col">Error File</th>
+              <th scope="col">Preview File</th>
             </tr>
           </thead>
           <tbody>
@@ -713,10 +714,19 @@
                   *ngIf="file.errorurl"
                   [href]="file.errorurl"
                   target="_blank"
-                  class="btn btn-danger btn-sm"
+                  class="btn btn-secondary btn-sm"
                   >Download</a
                 >
-                <span *ngIf="!file.errorurl">All right</span>
+                <span *ngIf="!file.errorurl">No error records</span>
+              </td>
+              <td>
+                <button
+                  *ngIf="file.errorurl"
+                  (click)="showPreview(file.errorurl)"
+                  class="btn btn-light btn-sm"
+                >
+                  <i class="bi bi-eye"></i> View
+                </button>
               </td>
             </tr>
           </tbody>
@@ -726,6 +736,45 @@
         <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
           Close
         </button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- <div *ngIf="isPreviewOpen" class="modal" tabindex="-2" style="display: block">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title">Preview</h5>
+        <button
+          type="button"
+          class="btn-close"
+          aria-label="Close"
+          (click)="closePreview()"
+        ></button>
+      </div>
+      <div class="modal-body">
+        <iframe [src]="xlsxUrl" width="100%" height="600px"></iframe>
+      </div>
+    </div>
+  </div>
+</div> -->
+
+<div *ngIf="isPreviewOpen" class="modal" tabindex="-2" style="display: block">
+  <div class="modal-dialog" style="max-width: 90%">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title">Preview</h5>
+        <button
+          type="button"
+          class="btn-close"
+          aria-label="Close"
+          (click)="closePreview()"
+        ></button>
+      </div>
+      <div class="modal-body">
+        <!-- Conditionally render preview based on file type -->
+        <iframe [src]="xlsxUrl" width="100%" height="600px"></iframe>
       </div>
     </div>
   </div>

@@ -7,6 +7,7 @@ import { MainpageService } from '../../services/mainpage.service';
 import { ToastrService } from 'ngx-toastr';
 import { debounceTime, distinctUntilChanged, Subject, switchMap } from 'rxjs';
 import { AwsService } from '../../services/aws.service';
+import { DomSanitizer, SafeResourceUrl } from '@angular/platform-browser';
 @Component({
   selector: 'app-inventory',
   templateUrl: './inventory.component.html',
@@ -52,7 +53,8 @@ export class InventoryComponent implements OnInit {
     private http: HttpClient,
     private main: MainpageService,
     private toastr: ToastrService,
-    private aws: AwsService
+    private aws: AwsService,
+    private sanitizer: DomSanitizer
   ) {}
   subject: Subject<string> = new Subject<string>();
   ngOnInit(): void {
@@ -250,13 +252,16 @@ export class InventoryComponent implements OnInit {
       xlsx.writeFile(wb, 'YourInventory.xlsx');
     }
   }
+
   onproductedit(item: any) {
     this.main.setdata(item);
   }
+
   editform(edit: any) {
     console.log('dash', edit);
     this.main.editproduct(edit).subscribe({
       next: (data) => {
+        console.log('came here');
         this.toastr.success('Product edited Successfully', 'success');
         this.fetchData();
       },
@@ -421,5 +426,21 @@ export class InventoryComponent implements OnInit {
       },
       error: () => {},
     });
+  }
+
+  isPreviewOpen: boolean = false;
+  xlsxUrl: any = '';
+
+  showPreview(url: string): void {
+    console.log(url);
+    const viewerURL = `https://view.officeapps.live.com/op/embed.aspx?src=${encodeURIComponent(
+      url
+    )}`;
+    this.xlsxUrl = this.sanitizer.bypassSecurityTrustResourceUrl(viewerURL);
+    this.isPreviewOpen = true;
+  }
+
+  closePreview(): void {
+    this.isPreviewOpen = false;
   }
 }

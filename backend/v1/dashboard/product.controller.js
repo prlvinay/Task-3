@@ -309,7 +309,7 @@ const postproduct = asyncErrorHandler(async (req, res) => {
     console.error("Error inserting product and vendors:", error);
   }
 });
-const putproduct = asyncErrorHandler(async (req, res) => {
+const putproduct = asyncErrorHandler(async (req, res, next) => {
   const {
     product_id,
     productName,
@@ -317,9 +317,9 @@ const putproduct = asyncErrorHandler(async (req, res) => {
     quantity,
     unit,
     category_name,
-    vendor_id,
+    vendor,
   } = req.body;
-  //console.log("edit", req.body);
+  console.log("edit", req.body);
   // const product_id=req.user;
   // console.log(req.user);
 
@@ -333,11 +333,27 @@ const putproduct = asyncErrorHandler(async (req, res) => {
       })
       .where({ product_id: product_id });
     console.log(edit);
-    console.log(
-      await db("products").select("*").where({ product_id: product_id })
-    );
 
     console.log("updated product ID:", product_id);
+    await db("product_to_vendor").where({ product_id: product_id }).del();
+
+    const vendorAssociations = vendor.map((vendorId) => ({
+      product_id: product_id,
+      vendor_id: vendorId,
+      status: "1",
+      created_at: new Date(),
+      updated_at: new Date(),
+    }));
+
+    await db("product_to_vendor").insert(vendorAssociations);
+
+    console.log(
+      "Vendor associations added successfully for product ID:",
+      product_id
+    );
+    res
+      .status(200)
+      .json(encryptData({ message: "Product Edited Successfyully" }));
   } catch (error) {
     console.error("Error inserting product and vendors:", error);
   }

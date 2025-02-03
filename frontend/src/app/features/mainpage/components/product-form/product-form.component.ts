@@ -18,6 +18,8 @@ export class ProductFormComponent implements OnInit {
   item: any;
   @Output() formSubmitted = new EventEmitter<any>();
   @Output() imagechange = new EventEmitter<any>();
+  @Output() formEdited = new EventEmitter<any>();
+
   constructor(
     private fb: FormBuilder,
     private http: HttpClient,
@@ -89,7 +91,9 @@ export class ProductFormComponent implements OnInit {
       if (this.item) {
         this.form = this.productForm.value;
         this.form.product_id = this.item.product_id;
-        this.main.editproduct(this.form).subscribe();
+        console.log('form', this.form);
+        // this.main.editproduct(this.form);
+        this.formEdited.emit(this.form);
       } else {
         console.log('form data' + JSON.stringify(this.productForm.value));
         this.formSubmitted.emit(this.productForm.value);

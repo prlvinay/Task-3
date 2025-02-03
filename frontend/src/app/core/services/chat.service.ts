@@ -15,6 +15,7 @@ export class ChatService {
 
   constructor(private toastr: ToastrService) {
     this.socket = io('http://localhost:3000');
+    console.log(this.socket);
 
     this.socket.on('receiveMessage', (messageData) => {
       const messages = this.messageSubject.value;

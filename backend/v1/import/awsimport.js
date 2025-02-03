@@ -10,6 +10,7 @@ const { Model } = require("objection");
 Model.knex(db);
 const XLSX = require("xlsx");
 const Joi = require("joi");
+const CHUNK_SIZE = 100;
 
 AWS.config.update({
   accessKeyId: process.env.AWS_KEY,
@@ -47,6 +48,24 @@ const productSchema = Joi.object({
   vendor: Joi.string().required(),
 });
 
+function chunkArray(array, size) {
+  const chunks = [];
+  for (let i = 0; i < array.length; i += size) {
+    chunks.push(array.slice(i, i + size));
+  }
+  return chunks;
+}
+
+// const chunkArray = async (chunks, size) => {
+//   const results = [];
+//   for (let i = 0; i < chunks.length; i += size) {
+//     const chunkGroup = chunks.slice(i, i + size);
+//     const promises = chunkGroup.map((chunk) => processFile(file, chunk));
+//     results.push(...(await Promise.all(promises)));
+//   }
+//   return results;
+// };
+
 const s3 = new AWS.S3();
 const getFun = async (io, userSockets) => {
   console.log("Checking for unprocessed files...");
@@ -58,12 +77,17 @@ const getFun = async (io, userSockets) => {
       .select("import_id ", "user_id", "filename", "fileurl", "status")
       .whereIn("status", ["pending"]);
 
+    await db("import_files")
+      .where("status", "pending")
+      .update({ status: "processing" });
+
     if (filesToProcess.length === 0) {
       console.log("No unprocessed files found.");
       return;
     }
 
     for (const file of filesToProcess) {
+      const startTime = Date.now();
       let s3FileUrl = null;
       const { import_id, user_id, filename, fileurl } = file;
       const fileContent = await download(fileurl);
@@ -79,8 +103,11 @@ const getFun = async (io, userSockets) => {
       console.log("valid", valid_count);
       console.log("invalid", invalid_count);
       if (validProducts.length > 0) {
-        console.log(vendorMapping);
-        await insertProducts(validProducts, vendorMapping, categoryMapping);
+        await insertProductsInChunks(
+          validProducts,
+          vendorMapping,
+          categoryMapping
+        );
       }
 
       if (invalidProducts.length > 0) {
@@ -88,7 +115,6 @@ const getFun = async (io, userSockets) => {
         const invalidFileName = `invalid_${filename}`;
         await uploadExcelToS3(invalidExcelBuffer, invalidFileName, user_id);
 
-        // Update the import_file record with the uploaded file URL
         s3FileUrl = `https://akv-interns.s3.ap-south-1.amazonaws.com/vinay@AKV0793/errorfiles/${user_id}/${invalidFileName}`;
       }
       await updateImportFileStatus(
@@ -99,9 +125,8 @@ const getFun = async (io, userSockets) => {
       );
       s3FileUrl = null;
       const status = invalid_count > 0 ? "failed" : "success";
-      // Send email to user
       const user = await db("users").where("user_id", user_id).first();
-      await sendEmailNotification(user.email, status, filename);
+      // await sendEmailNotification(user.email, status, filename);
 
       const notify =
         invalid_count > 0
@@ -114,6 +139,7 @@ const getFun = async (io, userSockets) => {
         status: "unread",
       });
       const userSocketId = userSockets[user_id];
+      console.log(userSocketId, io.sockets.sockets.has(userSocketId));
       if (userSocketId && io.sockets.sockets.has(userSocketId)) {
         io.to(userSocketId).emit("fileProcessed", {
           fileId: import_id,
@@ -125,12 +151,89 @@ const getFun = async (io, userSockets) => {
           ` notification sent to the user${userSocketId}  ${user_id}`
         );
       }
+      const endTime = Date.now();
+      console.log(
+        `Time Taken to process the files ${(endTime - startTime) / 1000}`
+      );
       console.log(`File ${filename} processed successfully.`);
     }
   } catch (error) {
     console.error("Error processing files:", error);
   }
 };
+
+async function insertProductsInChunks(
+  products,
+  vendorMapping,
+  categoryMapping
+) {
+  const chunks = chunkArray(products, CHUNK_SIZE);
+  const trx = await db.transaction();
+  try {
+    for (const chunk of chunks) {
+      await processChunk(chunk, vendorMapping, categoryMapping, trx);
+    }
+    await trx.commit();
+    console.log(`Valid Products Added to DB Successfully.`);
+  } catch (error) {
+    await trx.rollback();
+    console.error("Error inserting data into product table:", error);
+  }
+}
+
+async function processChunk(chunk, vendorMapping, categoryMapping, trx) {
+  for (const product of chunk) {
+    const { productName, category, quantity, unit, status, vendor } = product;
+
+    const existingProduct = await trx("products")
+      .where("product_name", productName)
+      .first();
+
+    let productId;
+
+    if (existingProduct) {
+      productId = existingProduct.product_id;
+      await trx("products")
+        .where("product_id", productId)
+        .update({
+          quantity_in_stock: existingProduct.quantity_in_stock + quantity,
+          unit_price: unit,
+          status: status,
+        });
+    } else {
+      const [newProductId] = await trx("products").insert({
+        product_name: productName,
+        category_id: categoryMapping[category],
+        quantity_in_stock: quantity,
+        unit_price: unit,
+        status: status,
+      });
+      productId = newProductId;
+    }
+
+    const vendorNames = vendor
+      .split(",")
+      .map((vendorName) => vendorName.trim());
+    const vendorIds = vendorNames
+      .map((vendorName) => vendorMapping[vendorName])
+      .filter(Boolean);
+
+    for (const vendorId of vendorIds) {
+      const existingRelation = await trx("product_to_vendor")
+        .where("product_id", productId)
+        .andWhere("vendor_id", vendorId)
+        .first();
+
+      if (!existingRelation) {
+        await trx("product_to_vendor").insert({
+          product_id: productId,
+          vendor_id: vendorId,
+          status: product.status,
+        });
+      }
+    }
+  }
+}
 
 async function download(file_url) {
   const params = {
@@ -220,80 +323,6 @@ async function uploadExcelToS3(fileBuffer, filename, user_id) {
   console.log(`File uploaded to S3: ${filename}`);
 }
 
-async function insertProducts(products, vendorMapping, categoryMapping) {
-  const trx = await db.transaction();
-  try {
-    for (const product of products) {
-      const { productName, category, quantity, unit, status, vendor } = product;
-      console.log("came");
-      const existingProduct = await trx("products")
-        .where("product_name", productName)
-        .first();
-
-      let productId;
-
-      if (existingProduct) {
-        productId = existingProduct.product_id;
-        await trx("products")
-          .where("product_id", productId)
-          .update({
-            quantity_in_stock: existingProduct.quantity_in_stock + quantity,
-            unit_price: unit,
-            status: status,
-          });
-        //console.log(`Product ${productName} updated with new quantity.`);
-      } else {
-        const [newProductId] = await trx("products").insert({
-          product_name: productName,
-          category_id: categoryMapping[category],
-          quantity_in_stock: quantity,
-          unit_price: unit,
-          status: status,
-        });
-        productId = newProductId;
-        // console.log(
-        //   `Inserted new product: ${productName} with ID: ${productId}`
-        // );
-      }
-
-      const vendorNames = vendor
-        .split(",")
-        .map((vendorName) => vendorName.trim());
-      const vendorIds = vendorNames
-        .map((vendorName) => vendorMapping[vendorName])
-        .filter(Boolean);
-
-      for (const vendorId of vendorIds) {
-        const existingRelation = await trx("product_to_vendor")
-          .where("product_id", productId)
-          .andWhere("vendor_id", vendorId)
-          .first();
-
-        if (!existingRelation) {
-          await trx("product_to_vendor").insert({
-            product_id: productId,
-            vendor_id: vendorId,
-            status: product.status,
-          });
-          // console.log(
-          //   `Vendor ${vendorId} associated with product ${productId}.`
-          // );
-        } else {
-          // console.log(
-          //   `Relation between product ${productId} and vendor ${vendorId} already exists.`
-          // );
-        }
-      }
-      trx.savepoint();
-    }
-    trx.commit();
-    console.log(`Valid Products Added to DB Successfully.`);
-  } catch (error) {
-    trx.rollback();
-    console.error("Error inserting data into product table:", error);
-  }
-}
-
 async function updateImportFileStatus(
   fileId,
   s3FileUrl,
@@ -344,48 +373,3 @@ async function sendEmailNotification(userEmail, status, fileName) {
 }
 
 module.exports = { getFun };
-
-// async function insertDataIntoProductTable(
-//   products,
-//   vendorMapping,
-//   categoryMapping
-// ) {
-//   try {
-//     for (const product of products) {
-//       const { productName, category, quantity, unit, status, vendor } = product;
-
-//       const [productId] = await db("products").insert(
-//         {
-//           product_name: productName,
-//           category_id: categoryMapping[category],
-//           quantity_in_stock: quantity,
-//           unit_price: unit,
-//           status: status,
-//         },
-//         ["product_id"]
-//       );
-//       console.log("Inserted product ID:", productId);
-//       const vendorNames = vendor
-//         .split(",")
-//         .map((vendorName) => vendorName.trim());
-//       const vendorIds = [];
-//       for (const vendorName of vendorNames) {
-//         const vendorId = vendorMapping[vendorName];
-//         if (vendorId) {
-//           vendorIds.push(vendorId);
-//         } else {
-//           console.log(`Vendor not found: ${vendorName}`);
-//         }
-//       }
-//       const vendorData = vendorIds.map((vendorId) => ({
-//         vendor_id: vendorId,
-//         product_id: productId,
-//         status: "1",
-//       }));
-//       await db("product_to_vendor").insert(vendorData);
-//       console.log("Vendor associations added successfully.");
-//     }
-//   } catch (error) {
-//     console.error("Error inserting data into product table:", error);
-//   }
-// }
