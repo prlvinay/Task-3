@@ -214,9 +214,10 @@ async function processChunk(chunk, vendorMapping, categoryMapping, trx) {
     const vendorNames = vendor
       .split(",")
       .map((vendorName) => vendorName.trim());
-    const vendorIds = vendorNames
-      .map((vendorName) => vendorMapping[vendorName])
-      .filter(Boolean);
+    const vendorIds = vendorNames.map(
+      (vendorName) => vendorMapping[vendorName]
+    );
+    //.filter(Boolean);
 
     for (const vendorId of vendorIds) {
       const existingRelation = await trx("product_to_vendor")
